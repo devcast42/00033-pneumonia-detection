@@ -1,21 +1,38 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-import uvicorn          
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 import io
 import torch
 import sys
 import os
 
 # Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(PROJECT_ROOT)
 
 from inference.predict import load_model, predict_image
-from models.definitions import SimpleCNN, get_transfer_model
+
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+env_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+allowed_origins = env_origins if env_origins else default_origins
 
 app = FastAPI(
     title="Pneumonia Detection API",
     description="API to detect pneumonia from chest X-ray images using Deep Learning models.",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Global variables to hold models
@@ -28,8 +45,8 @@ async def startup_event():
     Load models on startup.
     """
     # Paths to models
-    cnn_path = os.path.join("models", "cnn_model.pth")
-    transfer_path = os.path.join("models", "transfer_model.pth")
+    cnn_path = os.path.join(PROJECT_ROOT, "models", "cnn_model.pth")
+    transfer_path = os.path.join(PROJECT_ROOT, "models", "transfer_model.pth")
     
     # Load CNN Model
     if os.path.exists(cnn_path):
@@ -79,7 +96,8 @@ async def predict(
             raise HTTPException(status_code=500, detail=result["error"])
             
         return JSONResponse(content=result)
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: pneumonia-api
+    runtime: python
+    plan: free
+    buildCommand: python3 -m pip install -r project/requirements.txt
+    startCommand: python3 -m uvicorn project.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: CORS_ORIGINS
+        value: https://tu-frontend.vercel.app,http://localhost:3000,http://127.0.0.1:3000
